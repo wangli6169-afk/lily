@@ -352,7 +352,7 @@
       <button class="btn btn-save" id="saveBtn" onclick="saveToFile()" title="保存业务数据，不生成新的页面">&#x1F4BE; 保存数据</button>
       <button class="btn btn-light" onclick="exportData()" title="另存一份独立 JSON 业务数据文件">&#x1F4E4; 导出 JSON</button>
       <button class="btn btn-light" onclick="document.getElementById('importFile').click()" title="打开以前保存的 JSON 业务数据">&#x1F4C2; 打开 JSON</button>
-      <button class="btn btn-primary" onclick="writebackToTencentDoc()" title="一键复制数据，粘贴到 WorkBuddy 对话框即可写入腾讯文档">&#x1F4DD; 一键回写</button>
+      <button class="btn btn-primary" onclick="writebackToTencentDoc()" title="仅生成安全回写数据，不会直接修改腾讯文档">&#x1F4DD; 生成回写数据</button>
       <button class="btn btn-light" onclick="openDataPanel('load')" title="粘贴数据到页面恢复内容">&#x1F4E5; 导入数据</button>
       <button class="btn btn-light" onclick="window.print()">&#x1F5A8; 打印</button>
     </div>
@@ -1127,6 +1127,7 @@ function writebackToTencentDoc() {
 
   // Use the data panel (no clipboard API — blocked in sandbox)
   openDataPanel('save');
+  document.getElementById('dataPanelTitle').textContent = '腾讯文档回写数据（不会直接修改在线文档）';
   const ta = document.getElementById('saveDataText');
   ta.value = jsonStr;
   document.getElementById('saveHint').innerHTML = 
