@@ -1,0 +1,1227 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>发版记录文档</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+    background: #f5f6fa;
+    color: #2d3436;
+    line-height: 1.7;
+    padding: 40px 20px;
+  }
+  .container { max-width: 1280px; margin: 0 auto; }
+
+  /* Header */
+  .doc-header {
+    background: linear-gradient(135deg, #4a6cf7, #6b8afd);
+    color: #fff;
+    padding: 36px 40px;
+    border-radius: 16px 16px 0 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .doc-header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+  .doc-header p { font-size: 14px; opacity: 0.85; }
+  .toolbar { display: flex; gap: 10px; }
+  .btn {
+    padding: 8px 18px;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-light { background: rgba(255,255,255,0.2); color: #fff; }
+  .btn-light:hover { background: rgba(255,255,255,0.35); }
+  .btn-save { background: #fff; color: #4a6cf7; }
+  .btn-save:hover { background: #f0f4ff; }
+  .btn-save.unsaved { background: #ffd93d; color: #856404; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.7; } }
+  .btn-primary { background: #4a6cf7; color: #fff; }
+  .btn-primary:hover { background: #3a5ce5; }
+  .btn-danger { background: #e74c3c; color: #fff; }
+  .btn-danger:hover { background: #c0392b; }
+  .btn-sm { padding: 5px 12px; font-size: 12px; border-radius: 6px; }
+  .btn-ghost { background: #f0f0f5; color: #666; }
+  .btn-ghost:hover { background: #e0e0e8; }
+
+  /* Info Bar */
+  .info-bar {
+    background: #fff;
+    padding: 24px 40px;
+    border-bottom: 2px solid #eee;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 32px;
+  }
+  .info-item { display: flex; flex-direction: column; gap: 4px; }
+  .info-item .label { font-size: 12px; color: #999; text-transform: uppercase; letter-spacing: 0.5px; }
+  .info-item input, .info-item select {
+    font-size: 16px;
+    font-weight: 600;
+    color: #2d3436;
+    border: 1px solid transparent;
+    background: transparent;
+    padding: 4px 8px;
+    border-radius: 6px;
+    outline: none;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .info-item input:hover, .info-item select:hover { background: #f8f9fc; }
+  .info-item input:focus, .info-item select:focus { border-color: #4a6cf7; background: #fff; cursor: text; }
+  .info-item input { width: 160px; }
+  .info-hint { font-size: 11px; color: #bbb; margin-top: 2px; }
+
+  /* Section */
+  .section {
+    background: #fff;
+    margin-top: 24px;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  }
+  .section-header {
+    padding: 20px 28px;
+    border-bottom: 1px solid #f0f0f0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .section-header .icon { font-size: 20px; }
+  .section-header h2 { font-size: 18px; font-weight: 700; }
+  .section-header .count {
+    margin-left: auto;
+    background: #eef0f5;
+    color: #666;
+    padding: 3px 12px;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .section-header .add-btn {
+    margin-left: 12px;
+  }
+  .section-body { padding: 20px 28px; }
+
+  /* Table */
+  .table-wrap { overflow-x: auto; }
+  table.items-table { width: 100%; min-width: 1200px; border-collapse: collapse; }
+  table { width: 100%; border-collapse: collapse; }
+  th {
+    text-align: left;
+    padding: 10px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #636e72;
+    background: #f8f9fc;
+    border-bottom: 2px solid #eee;
+    white-space: nowrap;
+  }
+  td {
+    padding: 10px 12px;
+    font-size: 14px;
+    border-bottom: 1px solid #f5f5f5;
+    vertical-align: middle;
+  }
+  tr:hover td { background: #fafbfe; }
+  td.cell-desc { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  td.cell-remark { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  td.cell-review { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  td.cell-seq { color: #aaa; font-style: italic; }
+  td.cell-seq.filled { color: #4a6cf7; font-weight: 600; font-style: normal; }
+
+  /* Tags */
+  .tag {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .st-dev { background: #e3f2fd; color: #1565c0; }
+  .st-testing { background: #fff3cd; color: #856404; }
+  .st-ready { background: #f3e5f5; color: #6a1b9a; }
+  .st-consultant { background: #ffe0b2; color: #e65100; }
+  .st-customer { background: #e8f5e9; color: #2e7d32; }
+  .st-closed { background: #d4edda; color: #155724; }
+
+  .row-actions { display: flex; gap: 6px; }
+  .row-actions button {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: all 0.15s;
+  }
+  .row-actions .edit-btn:hover { background: #e3f2fd; }
+  .row-actions .del-btn:hover { background: #fde2e2; }
+  .row-actions .save-btn:hover { background: #d4edda; }
+  .row-actions .cancel-btn:hover { background: #fde2e2; }
+
+  /* Inline editing */
+  tr.item-editing { background: #fffbeb !important; }
+  tr.item-editing:hover { background: #fff3cd !important; }
+  tr.item-editing td { padding: 4px 6px; }
+  tr.item-editing input, tr.item-editing select {
+    width: 100%;
+    border: 1px solid #4a6cf7;
+    border-radius: 4px;
+    padding: 5px 7px;
+    font-size: 13px;
+    font-family: inherit;
+    background: #fff;
+    outline: none;
+    box-sizing: border-box;
+    min-width: 80px;
+  }
+  tr.item-editing input:focus, tr.item-editing select:focus {
+    box-shadow: 0 0 0 2px rgba(74,108,247,0.2);
+  }
+  tr.item-editing input::placeholder { color: #bbb; font-style: italic; }
+
+  /* Modal */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal {
+    background: #fff;
+    border-radius: 16px;
+    padding: 28px 32px;
+    width: 580px;
+    max-width: 90vw;
+    max-height: 88vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+  }
+  .modal h3 { font-size: 18px; font-weight: 700; margin-bottom: 20px; }
+  .modal .field { margin-bottom: 16px; }
+  .modal .field label { display: block; font-size: 13px; font-weight: 600; color: #636e72; margin-bottom: 6px; }
+  .modal .field input, .modal .field select, .modal .field textarea {
+    width: 100%;
+    padding: 9px 12px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .modal .field input:focus, .modal .field select:focus, .modal .field textarea:focus { border-color: #4a6cf7; }
+  .modal .field textarea { resize: vertical; min-height: 60px; }
+  .modal .field-row { display: flex; gap: 16px; }
+  .modal .field-row .field { flex: 1; }
+  .modal .field-hint { font-size: 11px; color: #aaa; margin-top: 4px; }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; }
+
+  /* Notes */
+  .note-box {
+    background: #f8f9fc;
+    border-left: 4px solid #4a6cf7;
+    padding: 14px 18px;
+    border-radius: 0 8px 8px 0;
+    margin-top: 16px;
+    font-size: 13px;
+    color: #555;
+  }
+  .note-box strong { color: #2d3436; }
+
+  .empty-hint {
+    text-align: center;
+    padding: 24px;
+    color: #bbb;
+    font-size: 14px;
+    font-style: italic;
+  }
+
+  .footer {
+    text-align: center;
+    margin-top: 32px;
+    padding: 20px;
+    color: #aaa;
+    font-size: 13px;
+  }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: #2d3436;
+    color: #fff;
+    padding: 12px 24px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    z-index: 2000;
+    transition: transform 0.3s;
+    pointer-events: none;
+    max-width: 90vw;
+    text-align: center;
+    line-height: 1.5;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .toast.warning { background: #856404; }
+  .toast.success { background: #155724; }
+
+  /* Hide file input */
+  #importFile { display: none; }
+
+  /* Data Exchange Panel — replaces clipboard/download approach */
+  .data-panel {
+    display: none;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: #fff;
+    border-top: 3px solid #4a6cf7;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.12);
+    z-index: 1500;
+    max-height: 45vh;
+    overflow: hidden;
+    flex-direction: column;
+  }
+  .data-panel.show { display: flex; }
+  .data-panel-header {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 24px;
+    background: #f8f9fc;
+    border-bottom: 1px solid #e0e4ec;
+    font-size: 14px; font-weight: 700;
+  }
+  .data-panel-header .close-btn {
+    margin-left: auto;
+    border: none; background: transparent; cursor: pointer;
+    font-size: 20px; color: #999; padding: 2px 8px; border-radius: 4px;
+  }
+  .data-panel-header .close-btn:hover { background: #fde2e2; color: #e74c3c; }
+  .data-panel-tabs {
+    display: flex; gap: 0; padding: 0 24px; border-bottom: 1px solid #e0e4ec;
+  }
+  .data-panel-tabs button {
+    border: none; background: transparent; cursor: pointer;
+    padding: 8px 16px; font-size: 13px; font-weight: 600; color: #888;
+    border-bottom: 2px solid transparent;
+  }
+  .data-panel-tabs button.active { color: #4a6cf7; border-bottom-color: #4a6cf7; }
+  .data-panel-body { flex: 1; overflow-y: auto; padding: 16px 24px; }
+  .data-panel-body textarea {
+    width: 100%; min-height: 200px;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 12px;
+    border: 1px solid #ddd; border-radius: 8px;
+    padding: 10px; resize: vertical;
+    background: #f8f9fc;
+  }
+  .data-panel-body textarea:focus { outline: none; border-color: #4a6cf7; }
+  .data-panel-actions {
+    display: flex; gap: 10px; margin-top: 10px; align-items: center;
+  }
+  .data-panel-actions .hint {
+    font-size: 12px; color: #888; flex: 1;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- ========== Header ========== -->
+  <div class="doc-header">
+    <div>
+      <h1>Release Notes / 发版记录</h1>
+      <p>跟踪每次发版过程中的事项处理、关键节点及风险，确保信息不遗漏</p>
+    </div>
+    <div class="toolbar">
+      <button class="btn btn-save" id="saveBtn" onclick="saveToFile()" title="保存业务数据，不生成新的页面">&#x1F4BE; 保存数据</button>
+      <button class="btn btn-light" onclick="exportData()" title="另存一份独立 JSON 业务数据文件">&#x1F4E4; 导出 JSON</button>
+      <button class="btn btn-light" onclick="document.getElementById('importFile').click()" title="打开以前保存的 JSON 业务数据">&#x1F4C2; 打开 JSON</button>
+      <button class="btn btn-primary" onclick="writebackToTencentDoc()" title="一键复制数据，粘贴到 WorkBuddy 对话框即可写入腾讯文档">&#x1F4DD; 一键回写</button>
+      <button class="btn btn-light" onclick="openDataPanel('load')" title="粘贴数据到页面恢复内容">&#x1F4E5; 导入数据</button>
+      <button class="btn btn-light" onclick="window.print()">&#x1F5A8; 打印</button>
+    </div>
+  </div>
+
+  <!-- ========== Release Info (defaults for new items) ========== -->
+  <div class="info-bar">
+    <div class="info-item">
+      <span class="label">发版序列号</span>
+      <input type="text" id="relSerialNo" placeholder="如: 2026072201" data-key="serialNo">
+      <span class="info-hint">新事项默认带入</span>
+    </div>
+    <div class="info-item">
+      <span class="label">预计发版时间</span>
+      <input type="date" id="relPlanDate" data-key="planDate">
+      <span class="info-hint">新事项默认带入</span>
+    </div>
+    <div class="info-item">
+      <span class="label">业务顾问</span>
+      <input type="text" id="relConsultant" placeholder="负责人" data-key="consultant">
+      <span class="info-hint">新事项默认带入</span>
+    </div>
+    <div class="info-item">
+      <span class="label">当前状态</span>
+      <select id="relStatus" data-key="status">
+        <option value="progress">进行中</option>
+        <option value="done">已完成</option>
+        <option value="blocked">受阻</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- ========== 发版事项清单 ========== -->
+  <div class="section">
+    <div class="section-header">
+      <span class="icon">&#x1F4CB;</span>
+      <h2>发版事项清单</h2>
+      <span class="count" id="itemCount">0 项</span>
+      <button class="btn btn-primary btn-sm add-btn" onclick="addItemInline()">+ 添加事项</button>
+    </div>
+    <div class="section-body">
+      <div class="table-wrap">
+        <table class="items-table">
+          <thead>
+            <tr>
+              <th style="width:55px">序号</th>
+              <th style="width:90px">考勤管理</th>
+              <th>问题描述</th>
+              <th style="width:80px">问题状态</th>
+              <th style="width:90px">业务顾问</th>
+              <th style="width:110px">预计发版时间</th>
+              <th style="width:110px">实际发版时间</th>
+              <th style="width:100px">发版序列号</th>
+              <th style="width:130px">备注</th>
+              <th style="width:130px">发版评审过程待跟进事项</th>
+              <th style="width:100px">ABAP/业务顾问</th>
+              <th style="width:70px">操作</th>
+            </tr>
+          </thead>
+          <tbody id="itemBody"></tbody>
+        </table>
+      </div>
+      <div class="note-box">
+        <strong>使用说明：</strong> 点击「+ 添加事项」直接在表格顶部插入可编辑行，填写完成后按 ✅ 保存或 ❌ 取消 | 序号由回写腾讯文档时自动生成 | 顶部信息栏的值会作为新增事项的默认值
+      </div>
+    </div>
+  </div>
+
+  <div class="footer" id="footer">
+    &#x1F4C8; 发版记录文档 &nbsp;|&nbsp; 页面与业务数据分离保存 &nbsp;|&nbsp; 最后更新：--
+  </div>
+
+</div>
+
+<!-- ========== Modal ========== -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModalOnOverlay(event)">
+  <div class="modal" id="modalBox"></div>
+</div>
+
+<!-- ========== Toast ========== -->
+<div class="toast" id="toast"></div>
+
+<!-- Separate business-data file input -->
+<input type="file" id="importFile" accept="application/json,.json" onchange="importData(event)">
+
+<!-- ========== Data Exchange Panel ========== -->
+<div class="data-panel" id="dataPanel">
+  <div class="data-panel-header">
+    <span id="dataPanelTitle">数据交换</span>
+    <button class="close-btn" onclick="closeDataPanel()">&times;</button>
+  </div>
+  <div class="data-panel-tabs">
+    <button id="tabSave" class="active" onclick="switchDataTab('save')">保存数据</button>
+    <button id="tabLoad" onclick="switchDataTab('load')">导入数据</button>
+  </div>
+  <div class="data-panel-body">
+    <!-- Save tab -->
+    <div id="saveTab">
+      <div class="note-box" style="margin-bottom:10px">
+        <strong>保存步骤：</strong> ① 点击下方「全选」按钮 ② 按 Ctrl+C 复制 ③ 粘贴到 WorkBuddy 对话框发送给启明 ④ 启明会帮你写入文件，刷新即可
+      </div>
+      <textarea id="saveDataText" readonly placeholder="点击「生成数据」按钮..."></textarea>
+      <div class="data-panel-actions">
+        <button class="btn btn-primary" onclick="generateSaveData()">生成数据</button>
+        <button class="btn btn-light" onclick="selectAllSaveData()">全选 (Ctrl+C 复制)</button>
+        <span class="hint" id="saveHint"></span>
+      </div>
+    </div>
+    <!-- Load tab -->
+    <div id="loadTab" style="display:none">
+      <div class="note-box" style="margin-bottom:10px">
+        <strong>导入步骤：</strong> 将启明发给你的数据粘贴到下方文本框，点击「加载到页面」
+      </div>
+      <textarea id="loadDataText" placeholder="在此粘贴 JSON 数据..."></textarea>
+      <div class="data-panel-actions">
+        <button class="btn btn-primary" onclick="loadFromText()">加载到页面</button>
+        <span class="hint">粘贴完整 JSON 后点击加载</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== Embedded Data (auto-updated on save) ========== -->
+<script type="application/json" id="embeddedData">{"info":{"serialNo":"","planDate":"","consultant":"","status":"progress"},"items":[]}</script>
+
+<!-- Supabase configuration and official browser SDK -->
+<script src="./supabase-config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script>
+// ====== Data Layer ======
+// Status constants MUST be defined before loadData() is called,
+// otherwise they are in TDZ (Temporal Dead Zone) and migrateItem()
+// will throw ReferenceError, silently returning empty data.
+const STATUS_MAP = {
+  dev: { label: '已与开发沟通，开发中', cls: 'st-dev' },
+  testing: { label: '开发完成，内部测试中', cls: 'st-testing' },
+  ready: { label: '内部测试完成，待发版生产', cls: 'st-ready' },
+  consultant: { label: '生产发版完成，待顾问验证', cls: 'st-consultant' },
+  customer: { label: '生产发版完成，待客户验证', cls: 'st-customer' },
+  closed: { label: '客户验证通过，已关闭', cls: 'st-closed' }
+};
+// Old status -> new status migration
+const STATUS_MIGRATE = { open: 'dev', fixing: 'dev', testing: 'testing', pending: 'consultant', released: 'closed' };
+
+const STORE_KEY = 'release_tracker_data';
+const CLOUD_TABLE = 'release_tracker';
+
+let supabaseClient = null;
+let cloudReady = false;
+
+let data = loadData();
+let hasUnsavedChanges = false;
+let dataFileHandle = null; // 当前会话绑定的独立 JSON 数据文件
+let editingItemId = null;   // 正在编辑的事项ID；'NEW' = 新增未保存的临时行
+let pendingDeleteId = null; // 待确认删除的事项ID（两步确认，替代 confirm()）
+
+function cloudConfigReady() {
+  const cfg = window.SUPABASE_CONFIG || {};
+  return cfg.url && cfg.publishableKey;
+}
+
+async function initCloudData() {
+  if (!cloudConfigReady()) {
+    showToast('尚未配置 Supabase，当前使用浏览器本地数据', 'warning');
+    return;
+  }
+  try {
+    const cfg = window.SUPABASE_CONFIG;
+    supabaseClient = window.supabase.createClient(cfg.url, cfg.publishableKey, {
+      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
+    });
+    const result = await supabaseClient
+      .from(cfg.table || CLOUD_TABLE)
+      .select('payload')
+      .eq('id', cfg.recordId || 'main-release-tracker')
+      .maybeSingle();
+    if (result.error) throw result.error;
+    if (result.data && result.data.payload) {
+      data = result.data.payload;
+      try { localStorage.setItem(STORE_KEY, JSON.stringify(data)); } catch(e) {}
+      hasUnsavedChanges = false;
+      renderAll();
+    }
+    cloudReady = true;
+    updateSaveBtn();
+    showToast('☁️ 已连接云端数据', 'success');
+  } catch (err) {
+    console.error('[Supabase] initialization failed:', err);
+    showToast('云端连接失败，已保留浏览器本地数据', 'warning');
+  }
+}
+
+// --- Migrate old item format to new format ---
+function migrateItem(old) {
+  // Old format: { id, desc, priority, status, foundDate, fixDate, note }
+  // New format: { id, seqNo, module, desc, status, consultant, planDate, actualDate, serialNo, remark, reviewFollowup, abapConsultant }
+  if (old.seqNo !== undefined) {
+    // Already new format, but may have old status key
+    if (STATUS_MIGRATE[old.status]) old.status = STATUS_MIGRATE[old.status];
+    return old;
+  }
+  const oldStatus = old.status || 'open';
+  return {
+    id: old.id,
+    seqNo: '',
+    module: '考勤管理',
+    desc: old.desc || '',
+    status: STATUS_MIGRATE[oldStatus] || 'dev',
+    consultant: '',
+    planDate: old.foundDate || '',
+    actualDate: old.fixDate || '',
+    serialNo: '',
+    remark: old.note || '',
+    reviewFollowup: '',
+    abapConsultant: ''
+  };
+}
+
+// --- Migrate old info format ---
+function migrateInfo(oldInfo) {
+  if (oldInfo.serialNo !== undefined) return oldInfo; // already new format
+  return {
+    serialNo: oldInfo.version || '',
+    planDate: oldInfo.date || '',
+    consultant: oldInfo.owner || '',
+    status: oldInfo.status || 'progress'
+  };
+}
+
+function loadData() {
+  // 1) Prefer the separate browser-side business data.
+  // This makes page code and business data independent.
+  const raw = localStorage.getItem(STORE_KEY);
+  if (raw) {
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed && (parsed.items || parsed.bugs || parsed.opts)) {
+        if (!parsed.items) {
+          parsed.items = [];
+          if (parsed.bugs) parsed.items.push(...parsed.bugs);
+          if (parsed.opts) parsed.items.push(...parsed.opts);
+        }
+        parsed.items = parsed.items.map(migrateItem);
+        parsed.info = migrateInfo(parsed.info || {});
+        window._recoveredFromLocal = true;
+        return parsed;
+      }
+    } catch(e) { console.error('[loadData] localStorage parse failed:', e); }
+  }
+
+  // 2) Use embedded sample/initial data only when no separate data exists.
+  const embedded = document.getElementById('embeddedData');
+  if (embedded && embedded.textContent.trim() && embedded.textContent.trim() !== '{}') {
+    try {
+      const parsed = JSON.parse(embedded.textContent);
+      if (parsed && parsed.items) {
+        // Migrate old data format (bugs + opts -> items)
+        if (!parsed.items) {
+          parsed.items = [];
+          const sevToPrio = { critical: 'p0', high: 'p0', medium: 'p1', low: 'p2' };
+          if (parsed.bugs) {
+            parsed.bugs.forEach(b => {
+              parsed.items.push({
+                id: b.id, desc: b.desc,
+                priority: sevToPrio[b.severity] || 'p2',
+                status: b.status, foundDate: b.foundDate || '',
+                fixDate: b.fixDate || '', note: b.note || ''
+              });
+            });
+          }
+          if (parsed.opts) {
+            parsed.opts.forEach(o => {
+              parsed.items.push({
+                id: o.id, desc: o.desc, priority: o.priority,
+                status: o.status, foundDate: '', fixDate: '', note: o.note || ''
+              });
+            });
+          }
+          delete parsed.bugs;
+          delete parsed.opts;
+        }
+        // Migrate items to new format
+        parsed.items = parsed.items.map(migrateItem);
+        // Migrate info
+        parsed.info = migrateInfo(parsed.info || {});
+        return parsed;
+      }
+    } catch(e) { console.error('[loadData] embeddedData parse failed:', e); }
+  }
+  // 3) Defaults
+  return {
+    info: { serialNo: '', planDate: '', consultant: '', status: 'progress' },
+    items: []
+  };
+}
+
+function saveData() {
+  // Update in-memory data + embedded data element (for current session)
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(data)); } catch(e) {}
+  const el = document.getElementById('embeddedData');
+  if (el) el.textContent = JSON.stringify(data);
+  hasUnsavedChanges = true;
+  updateSaveBtn();
+  updateFooter();
+  updateUnsavedBanner();
+}
+
+// Unsaved data banner — reminds user to save to file
+function updateUnsavedBanner() {
+  let banner = document.getElementById('unsavedBanner');
+  if (hasUnsavedChanges) {
+    if (!banner) {
+      banner = document.createElement('div');
+      banner.id = 'unsavedBanner';
+      banner.style.cssText = 'background:#fff3cd;border:1px solid #ffc107;color:#856404;padding:10px 28px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:10px;';
+      banner.innerHTML = '&#x26A0;&#xFE0F; 有新的业务数据，请点击右上角「保存数据」。页面文件本身不会重复生成。';
+      const infoBar = document.querySelector('.info-bar');
+      if (infoBar) infoBar.parentNode.insertBefore(banner, infoBar.nextSibling);
+    }
+  } else {
+    if (banner) banner.remove();
+  }
+}
+
+function updateSaveBtn() {
+  const btn = document.getElementById('saveBtn');
+  if (hasUnsavedChanges) {
+    btn.classList.add('unsaved');
+    btn.innerHTML = '&#x26A0; 保存数据 *';
+  } else {
+    btn.classList.remove('unsaved');
+    btn.innerHTML = '&#x1F4BE; 保存数据';
+  }
+}
+
+// Save business data to Supabase. The HTML page itself never changes.
+async function saveToFile() {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(data)); } catch(e) {}
+  if (!cloudReady || !supabaseClient) {
+    showToast('当前仅保存到本浏览器；请先完成 Supabase 配置', 'warning');
+    return;
+  }
+  try {
+    const cfg = window.SUPABASE_CONFIG;
+    const result = await supabaseClient.from(cfg.table || CLOUD_TABLE).upsert({
+      id: cfg.recordId || 'main-release-tracker',
+      payload: data,
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'id' });
+    if (result.error) throw result.error;
+    hasUnsavedChanges = false;
+    updateSaveBtn(); updateFooter(); updateUnsavedBanner();
+    showToast('✅ 业务数据已保存到云端，其他浏览器刷新后即可看到', 'success');
+  } catch (err) {
+    console.error('[Supabase] save failed:', err);
+    showToast('云端保存失败，本地草稿仍然保留', 'warning');
+  }
+}
+
+function generateSaveData() {
+  const payload = JSON.stringify({ action: 'save_release_data', data: data });
+  const ta = document.getElementById('saveDataText');
+  ta.value = payload;
+  const count = data.items.length;
+  document.getElementById('saveHint').textContent = '已生成 ' + count + ' 条事项数据，请点击「全选」复制';
+}
+
+function selectAllSaveData() {
+  const ta = document.getElementById('saveDataText');
+  ta.focus();
+  ta.select();
+  showToast('已全选，按 Ctrl+C 复制，然后粘贴到对话框');
+}
+
+function openDataPanel(tab) {
+  document.getElementById('dataPanel').classList.add('show');
+  switchDataTab(tab);
+}
+
+function closeDataPanel() {
+  document.getElementById('dataPanel').classList.remove('show');
+}
+
+function switchDataTab(tab) {
+  document.getElementById('tabSave').classList.toggle('active', tab === 'save');
+  document.getElementById('tabLoad').classList.toggle('active', tab === 'load');
+  document.getElementById('saveTab').style.display = tab === 'save' ? 'block' : 'none';
+  document.getElementById('loadTab').style.display = tab === 'load' ? 'block' : 'none';
+  document.getElementById('dataPanelTitle').textContent = tab === 'save' ? '保存数据' : '导入数据';
+}
+
+function loadFromText() {
+  const text = document.getElementById('loadDataText').value.trim();
+  if (!text) { showToast('请先粘贴数据'); return; }
+  try {
+    let parsed = JSON.parse(text);
+    // Handle both { action: 'save_release_data', data: {...} } and raw data
+    if (parsed.action === 'save_release_data' && parsed.data) parsed = parsed.data;
+    if (parsed.action === 'writeback_tencent_doc') {
+      // Convert writeback payload back to page data
+      parsed = {
+        info: parsed.info || { serialNo: '', planDate: '', consultant: '', status: 'progress' },
+        items: (parsed.rows || []).map(r => ({
+          id: genId('I'),
+          seqNo: r.col_A || '',
+          module: r.col_B || '考勤管理',
+          desc: r.col_C || '',
+          status: Object.entries(STATUS_MAP).find(([k,v]) => v.label === r.col_D)?.[0] || 'dev',
+          consultant: r.col_E || '',
+          planDate: r.col_F || '',
+          actualDate: r.col_G || '',
+          serialNo: r.col_H || '',
+          remark: r.col_I || '',
+          reviewFollowup: r.col_J || '',
+          abapConsultant: r.col_K || ''
+        }))
+      };
+    }
+    if (!parsed.items) throw new Error('数据格式不对：缺少 items');
+    // Migrate
+    parsed.items = parsed.items.map(migrateItem);
+    parsed.info = migrateInfo(parsed.info || {});
+    data = parsed;
+    saveData();
+    renderAll();
+    closeDataPanel();
+    showToast('✅ 已加载 ' + data.items.length + ' 条数据');
+  } catch(err) {
+    showToast('❌ 导入失败：' + err.message);
+  }
+}
+
+function saveByDownload() {
+  // Legacy fallback — kept but not primary path
+  const dataJson = JSON.stringify(data);
+  let html = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+  html = html.replace(
+    /<script type="application\/json" id="embeddedData">[\s\S]*?<\/script>/,
+    '<script type="application/json" id="embeddedData">' + dataJson + '<\/script>'
+  );
+  var blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = '发版记录文档.html';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('文件已下载（备用方式），建议使用数据面板保存');
+}
+
+function updateFooter() {
+  const now = new Date();
+  const ts = now.getFullYear() + '-' +
+    String(now.getMonth()+1).padStart(2,'0') + '-' +
+    String(now.getDate()).padStart(2,'0') + ' ' +
+    String(now.getHours()).padStart(2,'0') + ':' +
+    String(now.getMinutes()).padStart(2,'0');
+  let st;
+  if (hasUnsavedChanges) st = '&#x26A0; 有新的业务数据，请点击「保存数据」';
+  else st = '&#x2705; 业务数据已保存';
+  document.getElementById('footer').innerHTML =
+    '&#x1F4C8; 发版记录文档 &nbsp;|&nbsp; ' + st + ' &nbsp;|&nbsp; 最后更新：' + ts;
+}
+
+// ====== Toast ======
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.innerHTML = msg;
+  t.className = 'toast' + (type ? ' ' + type : '');
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+// ====== Helpers ======
+// STATUS_MAP and STATUS_MIGRATE are defined at the top of the Data Layer section
+// (before loadData() is called) to avoid TDZ errors.
+
+function genId(prefix) {
+  return prefix + Date.now().toString(36) + Math.random().toString(36).slice(2,5);
+}
+
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ====== Info Bar ======
+function renderInfo() {
+  document.getElementById('relSerialNo').value = data.info.serialNo || '';
+  document.getElementById('relPlanDate').value = data.info.planDate || '';
+  document.getElementById('relConsultant').value = data.info.consultant || '';
+  document.getElementById('relStatus').value = data.info.status || 'progress';
+}
+
+function bindInfoInputs() {
+  document.querySelectorAll('[data-key]').forEach(el => {
+    el.addEventListener('change', () => {
+      data.info[el.dataset.key] = el.value;
+      saveData();
+    });
+  });
+}
+
+// ====== Items Table (inline editing) ======
+function renderItems() {
+  const body = document.getElementById('itemBody');
+  document.getElementById('itemCount').textContent = data.items.length + ' 项';
+
+  if (data.items.length === 0) {
+    body.innerHTML = '<tr><td colspan="12" class="empty-hint">暂无事项记录 &mdash; 点击右上角「+ 添加事项」直接在线填写</td></tr>';
+    return;
+  }
+
+  body.innerHTML = data.items.map(it => {
+    if (it.id === editingItemId) return renderItemEditRow(it);
+    return renderItemViewRow(it);
+  }).join('');
+}
+
+function renderItemViewRow(it) {
+  const st = STATUS_MAP[it.status] || STATUS_MAP[STATUS_MIGRATE[it.status]] || STATUS_MAP.dev;
+  const seqClass = it.seqNo ? 'cell-seq filled' : 'cell-seq';
+  return `<tr data-id="${it.id}">
+    <td class="${seqClass}">${it.seqNo || '--'}</td>
+    <td>${esc(it.module) || ''}</td>
+    <td class="cell-desc" title="${esc(it.desc)}">${esc(it.desc) || ''}</td>
+    <td><span class="tag ${st.cls}">${st.label}</span></td>
+    <td>${esc(it.consultant) || ''}</td>
+    <td>${it.planDate || ''}</td>
+    <td>${it.actualDate || ''}</td>
+    <td>${esc(it.serialNo) || ''}</td>
+    <td class="cell-remark" title="${esc(it.remark)}">${esc(it.remark) || ''}</td>
+    <td class="cell-review" title="${esc(it.reviewFollowup)}">${esc(it.reviewFollowup) || ''}</td>
+    <td>${esc(it.abapConsultant) || ''}</td>
+    <td><div class="row-actions">
+      <button class="edit-btn" onclick="startEditItem('${it.id}')" title="编辑">&#x270F;&#xFE0F;</button>
+      ${it.id === pendingDeleteId
+        ? `<button class="del-btn" style="background:#fde2e2;color:#e74c3c;font-weight:700" onclick="confirmDeleteItem('${it.id}')" title="再次点击确认删除">确认删除?</button>`
+        : `<button class="del-btn" onclick="deleteItem('${it.id}')" title="删除">&#x1F5D1;</button>`
+      }
+    </div></td>
+  </tr>`;
+}
+
+function renderItemEditRow(it) {
+  return `<tr class="item-editing" data-id="${it.id}">
+    <td class="cell-seq">${esc(it.seqNo) || '--'}</td>
+    <td><input type="text" data-field="module" value="${esc(it.module) || '考勤管理'}" placeholder="考勤管理"></td>
+    <td><input type="text" data-field="desc" value="${esc(it.desc) || ''}" placeholder="问题描述（必填）" style="min-width:180px"></td>
+    <td><select data-field="status" style="min-width:140px">
+      <option value="dev" ${(it.status==='dev'||!it.status)?'selected':''}>已与开发沟通，开发中</option>
+      <option value="testing" ${it.status==='testing'?'selected':''}>开发完成，内部测试中</option>
+      <option value="ready" ${it.status==='ready'?'selected':''}>内部测试完成，待发版生产</option>
+      <option value="consultant" ${it.status==='consultant'?'selected':''}>生产发版完成，待顾问验证</option>
+      <option value="customer" ${it.status==='customer'?'selected':''}>生产发版完成，待客户验证</option>
+      <option value="closed" ${it.status==='closed'?'selected':''}>客户验证通过，已关闭</option>
+    </select></td>
+    <td><input type="text" data-field="consultant" value="${esc(it.consultant) || ''}" placeholder="业务顾问"></td>
+    <td><input type="date" data-field="planDate" value="${it.planDate || ''}"></td>
+    <td><input type="date" data-field="actualDate" value="${it.actualDate || ''}"></td>
+    <td><input type="text" data-field="serialNo" value="${esc(it.serialNo) || ''}" placeholder="序列号"></td>
+    <td><input type="text" data-field="remark" value="${esc(it.remark) || ''}" placeholder="备注" style="min-width:120px"></td>
+    <td><input type="text" data-field="reviewFollowup" value="${esc(it.reviewFollowup) || ''}" placeholder="待跟进" style="min-width:120px"></td>
+    <td><input type="text" data-field="abapConsultant" value="${esc(it.abapConsultant) || ''}" placeholder="ABAP顾问"></td>
+    <td><div class="row-actions">
+      <button class="save-btn" onclick="saveInlineItem('${it.id}')" title="保存">&#x2705;</button>
+      <button class="cancel-btn" onclick="cancelInlineEdit()" title="取消">&#x274C;</button>
+    </div></td>
+  </tr>`;
+}
+
+function addItemInline() {
+  if (editingItemId === 'NEW') return; // 已在新增状态，避免重复插入
+  // 取消其他正在编辑的行
+  if (editingItemId) {
+    const cur = data.items.find(it => it.id === editingItemId);
+    if (cur && !cur.desc) { data.items = data.items.filter(it => it.id !== editingItemId); }
+  }
+  const newItem = {
+    id: 'NEW',
+    seqNo: '',
+    module: '考勤管理',
+    desc: '',
+    status: 'dev',
+    consultant: data.info.consultant || '',
+    planDate: data.info.planDate || '',
+    actualDate: '',
+    serialNo: data.info.serialNo || '',
+    remark: '',
+    reviewFollowup: '',
+    abapConsultant: ''
+  };
+  data.items.unshift(newItem);
+  editingItemId = 'NEW';
+  renderItems();
+  setTimeout(() => {
+    const inp = document.querySelector('tr.item-editing input[data-field="desc"]');
+    if (inp) inp.focus();
+  }, 30);
+}
+
+function startEditItem(id) {
+  if (editingItemId === 'NEW') {
+    data.items.shift(); // 丢弃未保存的新行
+  }
+  editingItemId = id;
+  renderItems();
+  setTimeout(() => {
+    const inp = document.querySelector('tr.item-editing input[data-field="desc"]');
+    if (inp) { inp.focus(); inp.select(); }
+  }, 30);
+}
+
+function saveInlineItem(id) {
+  const row = document.querySelector(`tr.item-editing[data-id="${id}"]`);
+  if (!row) return;
+  const get = (f) => { const el = row.querySelector(`[data-field="${f}"]`); return el ? el.value.trim() : ''; };
+  const desc = get('desc');
+  if (!desc) { showToast('请填写问题描述'); return; }
+  const obj = {
+    seqNo: '',
+    module: get('module') || '考勤管理',
+    desc,
+    status: row.querySelector('[data-field="status"]').value,
+    consultant: get('consultant'),
+    planDate: row.querySelector('[data-field="planDate"]').value,
+    actualDate: row.querySelector('[data-field="actualDate"]').value,
+    serialNo: get('serialNo'),
+    remark: get('remark'),
+    reviewFollowup: get('reviewFollowup'),
+    abapConsultant: get('abapConsultant')
+  };
+  if (id === 'NEW') {
+    obj.id = genId('I');
+    const idx = data.items.findIndex(it => it.id === 'NEW');
+    if (idx >= 0) data.items[idx] = obj;
+    else data.items.unshift(obj);
+  } else {
+    const item = data.items.find(it => it.id === id);
+    Object.assign(item, obj);
+  }
+  editingItemId = null;
+  saveData();
+  renderItems();
+  showToast(id === 'NEW' ? '事项已添加' : '事项已更新');
+}
+
+function cancelInlineEdit() {
+  if (editingItemId === 'NEW') {
+    data.items = data.items.filter(it => it.id !== 'NEW');
+  }
+  editingItemId = null;
+  renderItems();
+}
+
+function deleteItem(id) {
+  // confirm() is blocked in WorkBuddy preview sandbox — use two-click inline confirmation
+  if (pendingDeleteId === id) {
+    // Second click: actually delete
+    confirmDeleteItem(id);
+    return;
+  }
+  // First click: mark as pending, show red "确认删除?" button
+  pendingDeleteId = id;
+  // Auto-clear after 3 seconds if no second click
+  setTimeout(() => {
+    if (pendingDeleteId === id) { pendingDeleteId = null; renderItems(); }
+  }, 3000);
+  renderItems();
+}
+
+function confirmDeleteItem(id) {
+  pendingDeleteId = null;
+  data.items = data.items.filter(it => it.id !== id);
+  if (editingItemId === id) editingItemId = null;
+  saveData();
+  renderItems();
+  showToast('已删除');
+}
+
+// ====== Modal System ======
+function openModal(html) {
+  document.getElementById('modalBox').innerHTML = html;
+  document.getElementById('modalOverlay').classList.add('show');
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('show');
+}
+
+function closeModalOnOverlay(e) {
+  if (e.target.id === 'modalOverlay') closeModal();
+}
+
+// ====== Writeback to Tencent Doc ======
+const TENCENT_DOC_CONFIG = {
+  file_id: 'DYVFMcHRSVkR1Zk9l',
+  sheet_id: '4p08l9',
+  sheet_name: '生产环境发版清单'
+};
+
+// Column mapping: A=序号, B=考勤管理, C=问题描述, D=问题状态, E=业务顾问,
+//                 F=预计发版时间, G=实际发版时间, H=发版序列号, I=备注,
+//                 J=发版评审过程待跟进事项, K=ABAP/业务顾问
+function writebackToTencentDoc() {
+  if (data.items.length === 0) {
+    showToast('没有可回写的事项，请先添加');
+    return;
+  }
+
+  const rows = data.items.map(it => {
+    const st = STATUS_MAP[it.status] || STATUS_MAP[STATUS_MIGRATE[it.status]] || STATUS_MAP.dev;
+    return {
+      col_A: it.seqNo || null,       // 序号: null = 自动生成（读取在线文档最大序号+1）
+      col_B: it.module || '考勤管理', // 考勤管理（业务模块）
+      col_C: it.desc || '',           // 问题描述
+      col_D: st.label,                // 问题状态
+      col_E: it.consultant || '',     // 业务顾问
+      col_F: it.planDate || '',       // 预计发版时间
+      col_G: it.actualDate || '',     // 实际发版时间
+      col_H: it.serialNo || '',       // 发版序列号
+      col_I: it.remark || '',         // 备注
+      col_J: it.reviewFollowup || '', // 发版评审过程待跟进事项
+      col_K: it.abapConsultant || ''  // ABAP/业务顾问
+    };
+  });
+
+  const today = new Date();
+  const dateStr = today.getFullYear() + 
+    String(today.getMonth()+1).padStart(2,'0') + 
+    String(today.getDate()).padStart(2,'0');
+
+  const payload = {
+    action: 'writeback_tencent_doc',
+    target: TENCENT_DOC_CONFIG,
+    safety_protocol: {
+      mode: 'new_sheet',
+      description: '在同一个腾讯文档中新建子表写入，绝不修改/删除原有子表数据',
+      new_sheet_name: '发版记录_' + dateStr,
+      original_sheet_id: '4p08l9',
+      original_sheet_name: '生产环境发版清单',
+      forbidden_operations: ['clear_range_all', 'clear_range_cells', 'delete_dimension', 'delete_sheet', 'overwrite_existing_rows'],
+      allowed_operations: ['add_sheet (新建子表)', 'set_range_value (仅写入新子表)', 'get_cell_data (只读原表获取序号)']
+    },
+    auto_seqno: true,
+    info: {
+      serialNo: data.info.serialNo,
+      planDate: data.info.planDate,
+      consultant: data.info.consultant,
+      status: data.info.status
+    },
+    row_count: rows.length,
+    column_mapping: {
+      A: '序号（自动生成）',
+      B: '考勤管理',
+      C: '问题描述',
+      D: '问题状态',
+      E: '业务顾问',
+      F: '预计发版时间',
+      G: '实际发版时间',
+      H: '发版序列号',
+      I: '备注',
+      J: '发版评审过程待跟进事项',
+      K: 'ABAP/业务顾问'
+    },
+    rows: rows
+  };
+
+  const jsonStr = JSON.stringify(payload);
+
+  // Use the data panel (no clipboard API — blocked in sandbox)
+  openDataPanel('save');
+  const ta = document.getElementById('saveDataText');
+  ta.value = jsonStr;
+  document.getElementById('saveHint').innerHTML = 
+    '✅ 已生成 <strong>' + rows.length + '</strong> 条回写数据（安全模式：新建子表，不动原数据）<br>点击「全选」→ Ctrl+C → 粘贴到对话框';
+}
+
+// ====== Export / Import ======
+function exportData() {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const now = new Date().toISOString().slice(0,10);
+  a.download = `release-notes-${data.info.serialNo || now}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('已导出独立 JSON 数据文件');
+}
+
+function importData(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const imported = JSON.parse(e.target.result);
+      if (!imported.items && !imported.bugs && !imported.opts) throw new Error('格式不对');
+      // confirm() blocked in sandbox — import directly, user already chose the file intentionally
+      // Migrate old format
+      if (!imported.items) {
+        imported.items = [];
+        const sevToPrio = { critical: 'p0', high: 'p0', medium: 'p1', low: 'p2' };
+        if (imported.bugs) imported.bugs.forEach(b => {
+          imported.items.push({ id: b.id, desc: b.desc, priority: sevToPrio[b.severity] || 'p2', status: b.status, foundDate: b.foundDate || '', fixDate: b.fixDate || '', note: b.note || '' });
+        });
+        if (imported.opts) imported.opts.forEach(o => {
+          imported.items.push({ id: o.id, desc: o.desc, priority: o.priority, status: o.status, foundDate: '', fixDate: '', note: o.note || '' });
+        });
+        delete imported.bugs; delete imported.opts;
+      }
+      // Migrate items to new format
+      imported.items = imported.items.map(migrateItem);
+      imported.info = migrateInfo(imported.info || {});
+      data = imported;
+      saveData();
+      renderAll();
+      showToast('数据已导入');
+    } catch(err) {
+      showToast('导入失败：文件格式不正确');
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+// ====== Init ======
+function renderAll() {
+  renderInfo();
+  renderItems();
+  updateFooter();
+  updateUnsavedBanner();
+}
+
+renderAll();
+bindInfoInputs();
+initCloudData();
+
+// Show recovery notice if data was restored from localStorage
+if (window._recoveredFromLocal) {
+  hasUnsavedChanges = true;
+  setTimeout(() => {
+    showToast('已从上次会话恢复 ' + data.items.length + ' 条数据 — 请点击「保存」并粘贴到对话框');
+  }, 800);
+}
+updateSaveBtn();
+updateUnsavedBanner();
+
+// Keyboard: Esc to close modal
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeModal();
+});
+
+// Warn before closing if unsaved changes
+window.addEventListener('beforeunload', (e) => {
+  if (hasUnsavedChanges) {
+    e.preventDefault();
+    e.returnValue = '';
+  }
+});
+
+// Ctrl+S to save
+document.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+    e.preventDefault();
+    saveToFile();
+  }
+});
+</script>
+</body>
+</html>
