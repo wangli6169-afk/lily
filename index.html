@@ -698,11 +698,13 @@ async function saveToFile() {
   }
   try {
     const cfg = window.SUPABASE_CONFIG;
-    const result = await supabaseClient.from(cfg.table || CLOUD_TABLE).upsert({
-      id: cfg.recordId || 'main-release-tracker',
+    const result = await supabaseClient
+      .from(cfg.table || CLOUD_TABLE)
+      .update({
       payload: data,
       updated_at: new Date().toISOString()
-    }, { onConflict: 'id' });
+      })
+      .eq('id', cfg.recordId || 'main-release-tracker');
     if (result.error) throw result.error;
     hasUnsavedChanges = false;
     updateSaveBtn(); updateFooter(); updateUnsavedBanner();
