@@ -13,7 +13,39 @@
     line-height: 1.7;
     padding: 40px 20px;
   }
-  .container { max-width: 1280px; margin: 0 auto; }
+  .container { max-width: 1580px; margin: 0 auto; }
+  .app-layout { display:grid; grid-template-columns:220px minmax(0,1fr); gap:22px; align-items:start; }
+  .archive-sidebar {
+    position:sticky; top:24px; background:#fff; border-radius:14px;
+    box-shadow:0 2px 10px rgba(0,0,0,.06); overflow:hidden;
+  }
+  .new-release-btn {
+    width:calc(100% - 20px); margin:10px; padding:12px 14px; border:0;
+    border-radius:9px; background:#4a6cf7; color:#fff; font-weight:700;
+    text-align:left; cursor:pointer;
+  }
+  .new-release-btn:hover { background:#3a5ce5; }
+  .archive-sidebar-title { padding:18px; color:#fff; background:linear-gradient(135deg,#4a6cf7,#6b8afd); font-weight:700; }
+  .archive-sidebar-hint { padding:12px 16px; color:#999; font-size:12px; border-bottom:1px solid #f0f0f0; }
+  .archive-nav { padding:10px; max-height:calc(100vh - 190px); overflow:auto; }
+  .archive-nav button {
+    width:100%; padding:11px 12px; margin-bottom:7px; border:1px solid #e8ebf5;
+    border-radius:8px; background:#f8faff; color:#37415b; text-align:left;
+    font-weight:650; cursor:pointer;
+  }
+  .archive-nav button:hover { color:#4a6cf7; border-color:#9aacf9; background:#eef2ff; }
+  .archive-nav .current-release { background:#4a6cf7; color:#fff; border-color:#4a6cf7; }
+  .archive-nav-empty { padding:18px 8px; color:#aaa; font-size:13px; text-align:center; }
+  .main-content { min-width:0; }
+  .archive-page { display:none; background:#fff; border-radius:14px; overflow:hidden; box-shadow:0 2px 10px rgba(0,0,0,.06); }
+  .archive-hidden { display:none !important; }
+  @media (max-width:900px) {
+    body { padding:18px 10px; }
+    .app-layout { grid-template-columns:1fr; }
+    .archive-sidebar { position:static; }
+    .archive-nav { display:flex; gap:8px; max-height:none; overflow-x:auto; }
+    .archive-nav button { width:auto; min-width:130px; margin:0; }
+  }
 
   /* Header */
   .doc-header {
@@ -109,6 +141,12 @@
     margin-left: 12px;
   }
   .section-body { padding: 20px 28px; }
+  .review-checklist { display:grid; grid-template-columns:repeat(4,minmax(150px,1fr)); gap:14px; }
+  .review-check-item { display:flex; align-items:center; gap:9px; padding:14px 16px; border:1px solid #e5e9f2; border-radius:10px; background:#f8faff; }
+  .review-check-item input[type="checkbox"] { width:18px; height:18px; accent-color:#4f6ef7; }
+  .review-check-item label { font-weight:600; white-space:nowrap; }
+  .review-check-item input[type="text"] { width:100%; min-width:80px; }
+  @media (max-width:900px) { .review-checklist { grid-template-columns:repeat(2,minmax(150px,1fr)); } }
 
   /* Table */
   .table-wrap { overflow-x: auto; }
@@ -341,6 +379,14 @@
 </head>
 <body>
 <div class="container">
+  <div class="app-layout">
+    <aside class="archive-sidebar">
+      <button class="new-release-btn" onclick="startNewRelease()">➕ 新增发版</button>
+      <div class="archive-sidebar-title">🗂 发版存档导航</div>
+      <div class="archive-nav" id="archiveSidebar"></div>
+    </aside>
+    <main class="main-content">
+  <div class="archive-page" id="archivePage"></div>
 
   <!-- ========== Header ========== -->
   <div class="doc-header">
@@ -350,12 +396,8 @@
     </div>
     <div class="toolbar">
       <button class="btn btn-save" id="saveBtn" onclick="saveToFile()" title="保存业务数据，不生成新的页面">&#x1F4BE; 保存数据</button>
-      <button class="btn btn-light" onclick="exportData()" title="另存一份独立 JSON 业务数据文件">&#x1F4E4; 导出 JSON</button>
-      <button class="btn btn-light" onclick="document.getElementById('importFile').click()" title="打开以前保存的 JSON 业务数据">&#x1F4C2; 打开 JSON</button>
-      <button class="btn btn-primary" onclick="copyTableData()" title="复制为表格格式，可直接粘贴到腾讯文档的新子表">&#x1F4CB; 复制到腾讯文档</button>
-      <button class="btn btn-light" onclick="openHistoryPanel()" title="查看并恢复最近保存的历史版本">&#x1F550; 历史版本</button>
-      <button class="btn btn-light" onclick="openDataPanel('load')" title="粘贴数据到页面恢复内容">&#x1F4E5; 导入数据</button>
-      <button class="btn btn-light" onclick="window.print()">&#x1F5A8; 打印</button>
+      <button class="btn btn-light" onclick="archiveCurrentRelease()" title="以发版序列号存档当前内容">📦 存档</button>
+      <button class="btn btn-primary" onclick="copyTableData()" title="仅复制问题描述列，可直接粘贴到腾讯文档">&#x1F4CB; 复制到腾讯文档</button>
     </div>
   </div>
 
@@ -363,18 +405,13 @@
   <div class="info-bar">
     <div class="info-item">
       <span class="label">发版序列号</span>
-      <input type="text" id="relSerialNo" placeholder="如: 2026072201" data-key="serialNo">
-      <span class="info-hint">新事项默认带入</span>
+      <input type="text" id="relSerialNo" placeholder="选择发版时间后自动生成" data-key="serialNo" readonly>
+      <span class="info-hint">根据发版时间自动生成 8 位数字</span>
     </div>
     <div class="info-item">
-      <span class="label">预计发版时间</span>
+      <span class="label">发版时间</span>
       <input type="date" id="relPlanDate" data-key="planDate">
-      <span class="info-hint">新事项默认带入</span>
-    </div>
-    <div class="info-item">
-      <span class="label">业务顾问</span>
-      <input type="text" id="relConsultant" placeholder="负责人" data-key="consultant">
-      <span class="info-hint">新事项默认带入</span>
+      <span class="info-hint">用于生成发版序列号</span>
     </div>
     <div class="info-item">
       <span class="label">当前状态</span>
@@ -403,13 +440,11 @@
               <th style="width:90px">考勤管理</th>
               <th>问题描述</th>
               <th style="width:80px">问题状态</th>
-              <th style="width:90px">业务顾问</th>
-              <th style="width:110px">预计发版时间</th>
-              <th style="width:110px">实际发版时间</th>
-              <th style="width:100px">发版序列号</th>
               <th style="width:130px">备注</th>
               <th style="width:130px">发版评审过程待跟进事项</th>
-              <th style="width:100px">ABAP/业务顾问</th>
+              <th style="width:150px">测试反馈邮件（MSG）</th>
+              <th style="width:100px">顾问/开发</th>
+              <th style="width:120px">顾问请求号</th>
               <th style="width:70px">操作</th>
             </tr>
           </thead>
@@ -422,10 +457,42 @@
     </div>
   </div>
 
+  <!-- ========== 评审后续事项检查 ========== -->
+  <div class="section">
+    <div class="section-header">
+      <span class="icon">✅</span>
+      <h2>评审后续事项检查</h2>
+      <span class="count" id="reviewCheckCount">0/4</span>
+    </div>
+    <div class="section-body">
+      <div class="review-checklist">
+        <div class="review-check-item">
+          <input type="checkbox" id="checkEmail" onchange="updateReviewChecklist('email', this.checked)">
+          <label for="checkEmail">1. 邮件</label>
+        </div>
+        <div class="review-check-item">
+          <input type="checkbox" id="checkReleaseRequest" onchange="updateReviewChecklist('releaseRequest', this.checked)">
+          <label for="checkReleaseRequest">2. 释放请求号</label>
+        </div>
+        <div class="review-check-item">
+          <input type="checkbox" id="checkSlmReply" onchange="updateReviewChecklist('slmReply', this.checked)">
+          <label for="checkSlmReply">3. SLM工单回复</label>
+        </div>
+        <div class="review-check-item">
+          <input type="checkbox" id="checkOther" onchange="updateReviewChecklist('other', this.checked)">
+          <label for="checkOther">4. 其他</label>
+          <input type="text" id="checkOtherNote" placeholder="补充说明" oninput="updateReviewOtherNote(this.value)">
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="footer" id="footer">
     &#x1F4C8; 发版记录文档 &nbsp;|&nbsp; 页面与业务数据分离保存 &nbsp;|&nbsp; 最后更新：--
   </div>
 
+    </main>
+  </div>
 </div>
 
 <!-- ========== Modal ========== -->
@@ -508,11 +575,12 @@ let autoSaveTimer = null;
 let cloudSaveInProgress = false;
 let historyCache = [];
 
-let data = loadData();
+let data = stripRemovedItemFields(loadData());
 let hasUnsavedChanges = false;
 let dataFileHandle = null; // 当前会话绑定的独立 JSON 数据文件
 let editingItemId = null;   // 正在编辑的事项ID；'NEW' = 新增未保存的临时行
 let pendingDeleteId = null; // 待确认删除的事项ID（两步确认，替代 confirm()）
+const pendingMsgFiles = new Map(); // 编辑期间暂存待上传的 MSG 文件
 
 function cloudConfigReady() {
   const cfg = window.SUPABASE_CONFIG || {};
@@ -536,15 +604,10 @@ async function initCloudData() {
       .maybeSingle();
     if (result.error) throw result.error;
     if (result.data && result.data.payload) {
-      const cloudData = result.data.payload;
-      // 防止空云端记录覆盖浏览器中尚未来得及同步的有效数据。
-      const localHasItems = data && Array.isArray(data.items) && data.items.length > 0;
-      const cloudHasItems = cloudData && Array.isArray(cloudData.items) && cloudData.items.length > 0;
-      if (!cloudHasItems && localHasItems) {
-        showToast('检测到本地有未同步数据，已保留并准备自动上传', 'warning');
-      } else {
-        data = cloudData;
-      }
+      const cloudData = stripRemovedItemFields(result.data.payload);
+      // Cloud is the single source of truth across browsers.
+      // Local storage is used only as an offline draft when cloud loading fails.
+      data = cloudData;
       try { localStorage.setItem(STORE_KEY, JSON.stringify(data)); } catch(e) {}
       hasUnsavedChanges = false;
       renderAll();
@@ -552,11 +615,40 @@ async function initCloudData() {
     cloudReady = true;
     updateSaveBtn();
     showToast('☁️ 已连接云端数据', 'success');
-    if (data && Array.isArray(data.items) && data.items.length > 0) scheduleAutoSave();
   } catch (err) {
     console.error('[Supabase] initialization failed:', err);
     showToast('云端连接失败，已保留浏览器本地数据', 'warning');
   }
+}
+
+async function refreshCloudData() {
+  if (!cloudReady || !supabaseClient || hasUnsavedChanges || editingItemId) return;
+  try {
+    const cfg = window.SUPABASE_CONFIG;
+    const result = await supabaseClient
+      .from(cfg.table || CLOUD_TABLE)
+      .select('payload')
+      .eq('id', cfg.recordId || 'main-release-tracker')
+      .maybeSingle();
+    if (result.error || !result.data?.payload) return;
+    data = stripRemovedItemFields(result.data.payload);
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(data)); } catch(e) {}
+    renderAll();
+  } catch(e) {
+    console.error('[Supabase] refresh failed:', e);
+  }
+}
+
+// These item-level columns were removed from the product; discard their old values too.
+function stripRemovedItemFields(payload) {
+  if (payload && Array.isArray(payload.items)) {
+    payload.items.forEach(item => {
+      delete item.planDate;
+      delete item.actualDate;
+      delete item.serialNo;
+    });
+  }
+  return payload;
 }
 
 // --- Migrate old item format to new format ---
@@ -665,6 +757,7 @@ function loadData() {
 
 function saveData() {
   // Update in-memory data + embedded data element (for current session)
+  stripRemovedItemFields(data);
   try { localStorage.setItem(STORE_KEY, JSON.stringify(data)); } catch(e) {}
   const el = document.getElementById('embeddedData');
   if (el) el.textContent = JSON.stringify(data);
@@ -723,6 +816,7 @@ function updateSaveBtn() {
 }
 
 async function saveToCloud(silent) {
+  stripRemovedItemFields(data);
   try { localStorage.setItem(STORE_KEY, JSON.stringify(data)); } catch(e) {}
   if (!cloudReady || !supabaseClient) {
     if (!silent) showToast('当前仅保存到本浏览器；请先完成 Supabase 配置', 'warning');
@@ -890,10 +984,23 @@ function esc(s) {
 }
 
 // ====== Info Bar ======
+function serialNoFromReleaseDate(dateValue) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(dateValue || '')
+    ? dateValue.replace(/-/g, '')
+    : '';
+}
+
+function releaseDateFromSerialNo(serialNo) {
+  const value = String(serialNo || '');
+  return /^\d{8}$/.test(value)
+    ? `${value.slice(0, 4)}-${value.slice(4, 6)}-${value.slice(6, 8)}`
+    : '';
+}
+
 function renderInfo() {
+  data.info.serialNo = serialNoFromReleaseDate(data.info.planDate);
   document.getElementById('relSerialNo').value = data.info.serialNo || '';
   document.getElementById('relPlanDate').value = data.info.planDate || '';
-  document.getElementById('relConsultant').value = data.info.consultant || '';
   document.getElementById('relStatus').value = data.info.status || 'progress';
 }
 
@@ -901,6 +1008,10 @@ function bindInfoInputs() {
   document.querySelectorAll('[data-key]').forEach(el => {
     el.addEventListener('change', () => {
       data.info[el.dataset.key] = el.value;
+      if (el.dataset.key === 'planDate') {
+        data.info.serialNo = serialNoFromReleaseDate(el.value);
+        document.getElementById('relSerialNo').value = data.info.serialNo;
+      }
       saveData();
     });
   });
@@ -912,7 +1023,7 @@ function renderItems() {
   document.getElementById('itemCount').textContent = data.items.length + ' 项';
 
   if (data.items.length === 0) {
-    body.innerHTML = '<tr><td colspan="12" class="empty-hint">暂无事项记录 &mdash; 点击右上角「+ 添加事项」直接在线填写</td></tr>';
+    body.innerHTML = '<tr><td colspan="10" class="empty-hint">暂无事项记录 &mdash; 点击右上角「+ 添加事项」直接在线填写</td></tr>';
     return;
   }
 
@@ -930,13 +1041,13 @@ function renderItemViewRow(it) {
     <td>${esc(it.module) || ''}</td>
     <td class="cell-desc" title="${esc(it.desc)}">${esc(it.desc) || ''}</td>
     <td><span class="tag ${st.cls}">${st.label}</span></td>
-    <td>${esc(it.consultant) || ''}</td>
-    <td>${it.planDate || ''}</td>
-    <td>${it.actualDate || ''}</td>
-    <td>${esc(it.serialNo) || ''}</td>
     <td class="cell-remark" title="${esc(it.remark)}">${esc(it.remark) || ''}</td>
     <td class="cell-review" title="${esc(it.reviewFollowup)}">${esc(it.reviewFollowup) || ''}</td>
+    <td>${it.testFeedbackMsg?.data
+      ? `<button class="btn btn-light btn-sm" onclick="downloadMsgFile('${it.id}')" title="${esc(it.testFeedbackMsg.name)}">📧 ${esc(it.testFeedbackMsg.name)}</button>`
+      : ''}</td>
     <td>${esc(it.abapConsultant) || ''}</td>
+    <td>${esc(it.consultantRequestNo) || ''}</td>
     <td><div class="row-actions">
       <button class="edit-btn" onclick="startEditItem('${it.id}')" title="编辑">&#x270F;&#xFE0F;</button>
       ${it.id === pendingDeleteId
@@ -960,13 +1071,15 @@ function renderItemEditRow(it) {
       <option value="customer" ${it.status==='customer'?'selected':''}>生产发版完成，待客户验证</option>
       <option value="closed" ${it.status==='closed'?'selected':''}>客户验证通过，已关闭</option>
     </select></td>
-    <td><input type="text" data-field="consultant" value="${esc(it.consultant) || ''}" placeholder="业务顾问"></td>
-    <td><input type="date" data-field="planDate" value="${it.planDate || ''}"></td>
-    <td><input type="date" data-field="actualDate" value="${it.actualDate || ''}"></td>
-    <td><input type="text" data-field="serialNo" value="${esc(it.serialNo) || ''}" placeholder="序列号"></td>
     <td><input type="text" data-field="remark" value="${esc(it.remark) || ''}" placeholder="备注" style="min-width:120px"></td>
     <td><input type="text" data-field="reviewFollowup" value="${esc(it.reviewFollowup) || ''}" placeholder="待跟进" style="min-width:120px"></td>
-    <td><input type="text" data-field="abapConsultant" value="${esc(it.abapConsultant) || ''}" placeholder="ABAP顾问"></td>
+    <td>
+      ${it.testFeedbackMsg?.data ? `<div style="margin-bottom:6px;font-size:12px">📧 ${esc(it.testFeedbackMsg.name)}
+        <button type="button" class="del-btn" onclick="removePendingMsgFile('${it.id}')">移除</button></div>` : ''}
+      <input type="file" accept=".msg,application/vnd.ms-outlook" onchange="handleMsgFile(this, '${it.id}')" style="max-width:180px">
+    </td>
+    <td><input type="text" data-field="abapConsultant" value="${esc(it.abapConsultant) || ''}" placeholder="顾问/开发"></td>
+    <td><input type="text" data-field="consultantRequestNo" value="${esc(it.consultantRequestNo) || ''}" placeholder="顾问请求号"></td>
     <td><div class="row-actions">
       <button class="save-btn" onclick="saveInlineItem('${it.id}')" title="保存">&#x2705;</button>
       <button class="cancel-btn" onclick="cancelInlineEdit()" title="取消">&#x274C;</button>
@@ -988,12 +1101,11 @@ function addItemInline() {
     desc: '',
     status: 'dev',
     consultant: data.info.consultant || '',
-    planDate: data.info.planDate || '',
-    actualDate: '',
-    serialNo: data.info.serialNo || '',
     remark: '',
     reviewFollowup: '',
-    abapConsultant: ''
+    testFeedbackMsg: null,
+    abapConsultant: '',
+    consultantRequestNo: ''
   };
   data.items.unshift(newItem);
   editingItemId = 'NEW';
@@ -1016,6 +1128,52 @@ function startEditItem(id) {
   }, 30);
 }
 
+function handleMsgFile(input, id) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  if (!file.name.toLowerCase().endsWith('.msg')) {
+    input.value = '';
+    showToast('请选择 .msg 格式的邮件文件', 'warning');
+    return;
+  }
+  if (file.size > 3 * 1024 * 1024) {
+    input.value = '';
+    showToast('MSG 文件不能超过 3MB', 'warning');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => {
+    pendingMsgFiles.set(id, {
+      name: file.name,
+      type: file.type || 'application/vnd.ms-outlook',
+      data: reader.result
+    });
+    showToast(`已选择邮件：${file.name}`, 'success');
+  };
+  reader.onerror = () => showToast('邮件文件读取失败，请重新选择', 'warning');
+  reader.readAsDataURL(file);
+}
+
+function removePendingMsgFile(id) {
+  pendingMsgFiles.set(id, null);
+  const row = document.querySelector(`tr.item-editing[data-id="${id}"]`);
+  const fileInfo = row?.querySelector('input[type="file"]')?.previousElementSibling;
+  if (fileInfo) fileInfo.remove();
+  showToast('保存事项后将移除该邮件');
+}
+
+function downloadMsgFile(id) {
+  const item = data.items.find(it => it.id === id);
+  const msg = item?.testFeedbackMsg;
+  if (!msg?.data) return;
+  const a = document.createElement('a');
+  a.href = msg.data;
+  a.download = msg.name || '测试反馈邮件.msg';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
 function saveInlineItem(id) {
   const row = document.querySelector(`tr.item-editing[data-id="${id}"]`);
   if (!row) return;
@@ -1027,13 +1185,14 @@ function saveInlineItem(id) {
     module: get('module') || '考勤管理',
     desc,
     status: row.querySelector('[data-field="status"]').value,
-    consultant: get('consultant'),
-    planDate: row.querySelector('[data-field="planDate"]').value,
-    actualDate: row.querySelector('[data-field="actualDate"]').value,
-    serialNo: get('serialNo'),
+    consultant: data.items.find(it => it.id === id)?.consultant || '',
     remark: get('remark'),
     reviewFollowup: get('reviewFollowup'),
-    abapConsultant: get('abapConsultant')
+    testFeedbackMsg: pendingMsgFiles.has(id)
+      ? pendingMsgFiles.get(id)
+      : (data.items.find(it => it.id === id)?.testFeedbackMsg || null),
+    abapConsultant: get('abapConsultant'),
+    consultantRequestNo: get('consultantRequestNo')
   };
   if (id === 'NEW') {
     obj.id = genId('I');
@@ -1044,6 +1203,7 @@ function saveInlineItem(id) {
     const item = data.items.find(it => it.id === id);
     Object.assign(item, obj);
   }
+  pendingMsgFiles.delete(id);
   editingItemId = null;
   saveData();
   renderItems();
@@ -1051,6 +1211,7 @@ function saveInlineItem(id) {
 }
 
 function cancelInlineEdit() {
+  if (editingItemId) pendingMsgFiles.delete(editingItemId);
   if (editingItemId === 'NEW') {
     data.items = data.items.filter(it => it.id !== 'NEW');
   }
@@ -1104,32 +1265,15 @@ const TENCENT_DOC_CONFIG = {
   sheet_name: '生产环境发版清单'
 };
 
-// Copy tab-separated rows that can be pasted directly into a new Tencent Docs sheet.
+// Copy only the issue-description column for Tencent Docs.
 async function copyTableData() {
   if (data.items.length === 0) {
     showToast('没有可复制的事项，请先添加');
     return;
   }
-  const headers = ['序号', '考勤管理', '问题描述', '问题状态', '业务顾问', '预计发版时间',
-    '实际发版时间', '发版序列号', '备注', '发版评审过程待跟进事项', 'ABAP/业务顾问'];
   const clean = value => String(value ?? '').replace(/\t/g, ' ').replace(/\r?\n/g, ' ');
-  const rows = data.items.map((it, index) => {
-    const st = STATUS_MAP[it.status] || STATUS_MAP[STATUS_MIGRATE[it.status]] || STATUS_MAP.dev;
-    return [
-      it.seqNo || index + 1,
-      it.module || '考勤管理',
-      it.desc || '',
-      st.label,
-      it.consultant || '',
-      it.planDate || '',
-      it.actualDate || '',
-      it.serialNo || '',
-      it.remark || '',
-      it.reviewFollowup || '',
-      it.abapConsultant || ''
-    ].map(clean).join('\t');
-  });
-  const text = [headers.join('\t'), ...rows].join('\n');
+  const rows = data.items.map(it => clean(it.desc || ''));
+  const text = rows.join('\n');
 
   try {
     await navigator.clipboard.writeText(text);
@@ -1143,6 +1287,180 @@ async function copyTableData() {
     ta.select();
     document.getElementById('saveHint').textContent = '请按 Ctrl+C 复制，然后到腾讯文档的新子表中按 Ctrl+V 粘贴';
   }
+}
+
+function archiveCurrentRelease() {
+  const serialNo = serialNoFromReleaseDate(data.info.planDate);
+  if (!serialNo) {
+    showToast('请先选择发版时间，系统才能生成存档主键', 'warning');
+    return;
+  }
+  if (!data.archives || Array.isArray(data.archives)) data.archives = {};
+  const archivedItems = JSON.parse(JSON.stringify(data.items));
+  data.archives[serialNo] = {
+    serialNo,
+    archivedAt: new Date().toISOString(),
+    info: {
+      ...JSON.parse(JSON.stringify(data.info)),
+      serialNo,
+      planDate: releaseDateFromSerialNo(serialNo)
+    },
+    items: archivedItems,
+    reviewChecklist: JSON.parse(JSON.stringify(ensureReviewChecklist()))
+  };
+  saveData();
+  renderArchiveSidebar();
+  showToast(`✅ 已按序列号 ${serialNo} 存档`, 'success');
+}
+
+function startNewRelease() {
+  showCurrentReleasePage();
+  const checklist = ensureReviewChecklist();
+  const hasCurrentContent = data.items.length > 0 ||
+    checklist.email || checklist.releaseRequest || checklist.slmReply ||
+    checklist.other || String(checklist.otherNote || '').trim();
+  const serialNo = serialNoFromReleaseDate(data.info.planDate);
+
+  if (hasCurrentContent && !serialNo) {
+    showToast('当前有未存档内容，请先选择发版时间，再新增发版', 'warning');
+    return;
+  }
+  if (hasCurrentContent) archiveCurrentRelease();
+
+  const savedArchives = data.archives && !Array.isArray(data.archives)
+    ? data.archives
+    : {};
+  data = {
+    info: { serialNo: '', planDate: '', consultant: '', status: 'progress' },
+    items: [],
+    reviewChecklist: {
+      email: false,
+      releaseRequest: false,
+      slmReply: false,
+      other: false,
+      otherNote: ''
+    },
+    archives: savedArchives
+  };
+  editingItemId = null;
+  pendingDeleteId = null;
+  pendingMsgFiles.clear();
+  saveData();
+  renderAll();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  showToast(hasCurrentContent ? '✅ 当前发版已存档，已新建空白发版' : '✅ 已新建空白发版', 'success');
+}
+
+function renderArchiveSidebar() {
+  const nav = document.getElementById('archiveSidebar');
+  if (!nav) return;
+  const archives = data.archives && !Array.isArray(data.archives) ? data.archives : {};
+  const serialNumbers = Object.keys(archives)
+    .filter(key => /^\d{8}$/.test(key))
+    .sort((a, b) => b.localeCompare(a));
+  nav.innerHTML = `
+    ${serialNumbers.map(serialNo =>
+      `<button onclick="viewArchivedRelease('${serialNo}')">📦 ${serialNo}<br><small>${archives[serialNo].items?.length || 0} 条事项</small></button>`
+    ).join('')}
+    ${serialNumbers.length ? '' : '<div class="archive-nav-empty">暂无历史存档<br>完成当前发版后点击“存档”</div>'}`;
+}
+
+function openArchivePanel() {
+  const archives = data.archives && !Array.isArray(data.archives) ? data.archives : {};
+  const records = Object.values(archives).sort((a, b) =>
+    String(b.archivedAt || '').localeCompare(String(a.archivedAt || '')));
+  const box = document.getElementById('modalBox');
+  box.innerHTML = `
+    <div class="modal-header">
+      <h3>🗂 发版存档</h3>
+      <button class="close-btn" onclick="closeModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      ${records.length ? records.map(record => `
+        <div class="note-box" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div>
+            <strong>发版序列号：${esc(record.serialNo)}</strong><br>
+            <span>${record.items?.length || 0} 条事项 · 存档时间：${formatArchiveTime(record.archivedAt)}</span>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="viewArchivedRelease('${record.serialNo}')">查看内容</button>
+        </div>`).join('') : '<div class="empty-hint">暂无存档记录</div>'}
+    </div>`;
+  document.getElementById('modalOverlay').classList.add('show');
+}
+
+function formatArchiveTime(value) {
+  if (!value) return '--';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? esc(value) : date.toLocaleString('zh-CN');
+}
+
+function viewArchivedRelease(serialNo) {
+  const record = data.archives?.[serialNo];
+  if (!record) return;
+  const checklist = record.reviewChecklist || {};
+  const checks = [
+    ['邮件', checklist.email],
+    ['释放请求号', checklist.releaseRequest],
+    ['SLM工单回复', checklist.slmReply],
+    ['其他' + (checklist.otherNote ? `：${checklist.otherNote}` : ''), checklist.other]
+  ];
+  const page = document.getElementById('archivePage');
+  document.querySelectorAll('.main-content > *').forEach(element => {
+    if (element.id !== 'archivePage') element.classList.add('archive-hidden');
+  });
+  page.style.display = 'block';
+  page.innerHTML = `
+    <div class="modal-header" style="background:linear-gradient(135deg,#4a6cf7,#6b8afd);color:#fff">
+      <h3>📦 存档 ${esc(serialNo)}</h3>
+      <button class="btn btn-save" onclick="showCurrentReleasePage()">返回新增发版</button>
+    </div>
+    <div class="modal-body">
+      <div class="note-box" style="margin-bottom:14px">
+        <strong>发版时间：</strong>${esc(releaseDateFromSerialNo(serialNo) || record.info?.planDate || '--')}　
+        <strong>当前状态：</strong>${esc(record.info?.status || '--')}　
+        <strong>存档时间：</strong>${formatArchiveTime(record.archivedAt)}
+      </div>
+      <div class="table-wrap">
+        <table class="items-table">
+          <thead><tr><th>考勤管理</th><th>问题描述</th><th>问题状态</th><th>备注</th><th>待跟进事项</th><th>测试反馈邮件</th><th>顾问/开发</th><th>顾问请求号</th></tr></thead>
+          <tbody>${(record.items || []).map((item, index) => {
+            const status = STATUS_MAP[item.status] || STATUS_MAP.dev;
+            return `<tr><td>${esc(item.module)}</td><td>${esc(item.desc)}</td><td>${esc(status.label)}</td><td>${esc(item.remark)}</td><td>${esc(item.reviewFollowup)}</td>
+              <td>${item.testFeedbackMsg?.data ? `<button class="btn btn-primary btn-sm" onclick="downloadArchivedMsg('${serialNo}',${index})">📧 ${esc(item.testFeedbackMsg.name)}</button>` : ''}</td>
+              <td>${esc(item.abapConsultant)}</td><td>${esc(item.consultantRequestNo)}</td></tr>`;
+          }).join('') || '<tr><td colspan="8" class="empty-hint">无事项</td></tr>'}</tbody>
+        </table>
+      </div>
+      <div class="note-box" style="margin-top:14px">
+        <strong>评审后续事项：</strong>
+        ${checks.map(([label, done]) => `${done ? '✅' : '⬜'} ${esc(label)}`).join('　')}
+      </div>
+    </div>`;
+  closeModal();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function showCurrentReleasePage() {
+  const page = document.getElementById('archivePage');
+  if (page) {
+    page.style.display = 'none';
+    page.innerHTML = '';
+  }
+  document.querySelectorAll('.main-content > *').forEach(element => {
+    if (element.id !== 'archivePage') element.classList.remove('archive-hidden');
+  });
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function downloadArchivedMsg(serialNo, itemIndex) {
+  const msg = data.archives?.[serialNo]?.items?.[itemIndex]?.testFeedbackMsg;
+  if (!msg?.data) return;
+  const a = document.createElement('a');
+  a.href = msg.data;
+  a.download = msg.name || '测试反馈邮件.msg';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
 }
 
 function openHistoryPanel() {
@@ -1182,7 +1500,7 @@ async function restoreHistory(index) {
 
 // Column mapping: A=序号, B=考勤管理, C=问题描述, D=问题状态, E=业务顾问,
 //                 F=预计发版时间, G=实际发版时间, H=发版序列号, I=备注,
-//                 J=发版评审过程待跟进事项, K=ABAP/业务顾问
+//                 J=发版评审过程待跟进事项, K=顾问/开发
 function writebackToTencentDoc() {
   if (data.items.length === 0) {
     showToast('没有可回写的事项，请先添加');
@@ -1202,7 +1520,7 @@ function writebackToTencentDoc() {
       col_H: it.serialNo || '',       // 发版序列号
       col_I: it.remark || '',         // 备注
       col_J: it.reviewFollowup || '', // 发版评审过程待跟进事项
-      col_K: it.abapConsultant || ''  // ABAP/业务顾问
+      col_K: it.abapConsultant || ''  // 顾问/开发
     };
   });
 
@@ -1242,7 +1560,7 @@ function writebackToTencentDoc() {
       H: '发版序列号',
       I: '备注',
       J: '发版评审过程待跟进事项',
-      K: 'ABAP/业务顾问'
+      K: '顾问/开发'
     },
     rows: rows
   };
@@ -1308,9 +1626,47 @@ function importData(event) {
 }
 
 // ====== Init ======
+function ensureReviewChecklist() {
+  if (!data.reviewChecklist) {
+    data.reviewChecklist = {
+      email: false,
+      releaseRequest: false,
+      slmReply: false,
+      other: false,
+      otherNote: ''
+    };
+  }
+  return data.reviewChecklist;
+}
+
+function renderReviewChecklist() {
+  const checklist = ensureReviewChecklist();
+  document.getElementById('checkEmail').checked = !!checklist.email;
+  document.getElementById('checkReleaseRequest').checked = !!checklist.releaseRequest;
+  document.getElementById('checkSlmReply').checked = !!checklist.slmReply;
+  document.getElementById('checkOther').checked = !!checklist.other;
+  document.getElementById('checkOtherNote').value = checklist.otherNote || '';
+  const completed = ['email', 'releaseRequest', 'slmReply', 'other']
+    .filter(key => checklist[key]).length;
+  document.getElementById('reviewCheckCount').textContent = `${completed}/4`;
+}
+
+function updateReviewChecklist(key, checked) {
+  ensureReviewChecklist()[key] = checked;
+  renderReviewChecklist();
+  saveData();
+}
+
+function updateReviewOtherNote(value) {
+  ensureReviewChecklist().otherNote = value;
+  saveData();
+}
+
 function renderAll() {
   renderInfo();
   renderItems();
+  renderReviewChecklist();
+  renderArchiveSidebar();
   updateFooter();
   updateUnsavedBanner();
 }
@@ -1318,6 +1674,10 @@ function renderAll() {
 renderAll();
 bindInfoInputs();
 initCloudData();
+window.addEventListener('focus', refreshCloudData);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') refreshCloudData();
+});
 
 // Show recovery notice if data was restored from localStorage
 if (window._recoveredFromLocal) {
