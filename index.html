@@ -352,7 +352,8 @@
       <button class="btn btn-save" id="saveBtn" onclick="saveToFile()" title="保存业务数据，不生成新的页面">&#x1F4BE; 保存数据</button>
       <button class="btn btn-light" onclick="exportData()" title="另存一份独立 JSON 业务数据文件">&#x1F4E4; 导出 JSON</button>
       <button class="btn btn-light" onclick="document.getElementById('importFile').click()" title="打开以前保存的 JSON 业务数据">&#x1F4C2; 打开 JSON</button>
-      <button class="btn btn-primary" onclick="writebackToTencentDoc()" title="仅生成安全回写数据，不会直接修改腾讯文档">&#x1F4DD; 生成回写数据</button>
+      <button class="btn btn-primary" onclick="copyTableData()" title="复制为表格格式，可直接粘贴到腾讯文档的新子表">&#x1F4CB; 复制到腾讯文档</button>
+      <button class="btn btn-light" onclick="openHistoryPanel()" title="查看并恢复最近保存的历史版本">&#x1F550; 历史版本</button>
       <button class="btn btn-light" onclick="openDataPanel('load')" title="粘贴数据到页面恢复内容">&#x1F4E5; 导入数据</button>
       <button class="btn btn-light" onclick="window.print()">&#x1F5A8; 打印</button>
     </div>
@@ -503,6 +504,9 @@ const CLOUD_TABLE = 'release_tracker';
 
 let supabaseClient = null;
 let cloudReady = false;
+let autoSaveTimer = null;
+let cloudSaveInProgress = false;
+let historyCache = [];
 
 let data = loadData();
 let hasUnsavedChanges = false;
@@ -532,7 +536,15 @@ async function initCloudData() {
       .maybeSingle();
     if (result.error) throw result.error;
     if (result.data && result.data.payload) {
-      data = result.data.payload;
+      const cloudData = result.data.payload;
+      // 防止空云端记录覆盖浏览器中尚未来得及同步的有效数据。
+      const localHasItems = data && Array.isArray(data.items) && data.items.length > 0;
+      const cloudHasItems = cloudData && Array.isArray(cloudData.items) && cloudData.items.length > 0;
+      if (!cloudHasItems && localHasItems) {
+        showToast('检测到本地有未同步数据，已保留并准备自动上传', 'warning');
+      } else {
+        data = cloudData;
+      }
       try { localStorage.setItem(STORE_KEY, JSON.stringify(data)); } catch(e) {}
       hasUnsavedChanges = false;
       renderAll();
@@ -540,6 +552,7 @@ async function initCloudData() {
     cloudReady = true;
     updateSaveBtn();
     showToast('☁️ 已连接云端数据', 'success');
+    if (data && Array.isArray(data.items) && data.items.length > 0) scheduleAutoSave();
   } catch (err) {
     console.error('[Supabase] initialization failed:', err);
     showToast('云端连接失败，已保留浏览器本地数据', 'warning');
@@ -659,6 +672,26 @@ function saveData() {
   updateSaveBtn();
   updateFooter();
   updateUnsavedBanner();
+  saveLocalHistorySnapshot();
+  scheduleAutoSave();
+}
+
+function saveLocalHistorySnapshot() {
+  try {
+    const key = 'release_tracker_local_history';
+    const history = JSON.parse(localStorage.getItem(key) || '[]');
+    const serialized = JSON.stringify(data);
+    if (!history.length || JSON.stringify(history[0].payload) !== serialized) {
+      history.unshift({ saved_at: new Date().toISOString(), payload: JSON.parse(serialized) });
+      localStorage.setItem(key, JSON.stringify(history.slice(0, 20)));
+    }
+  } catch(e) {}
+}
+
+function scheduleAutoSave() {
+  if (!cloudReady || !supabaseClient) return;
+  clearTimeout(autoSaveTimer);
+  autoSaveTimer = setTimeout(() => saveToCloud(true), 1200);
 }
 
 // Unsaved data banner — reminds user to save to file
@@ -689,13 +722,17 @@ function updateSaveBtn() {
   }
 }
 
-// Save business data to Supabase. The HTML page itself never changes.
-async function saveToFile() {
+async function saveToCloud(silent) {
   try { localStorage.setItem(STORE_KEY, JSON.stringify(data)); } catch(e) {}
   if (!cloudReady || !supabaseClient) {
-    showToast('当前仅保存到本浏览器；请先完成 Supabase 配置', 'warning');
-    return;
+    if (!silent) showToast('当前仅保存到本浏览器；请先完成 Supabase 配置', 'warning');
+    return false;
   }
+  if (cloudSaveInProgress) {
+    scheduleAutoSave();
+    return false;
+  }
+  cloudSaveInProgress = true;
   try {
     const cfg = window.SUPABASE_CONFIG;
     const result = await supabaseClient
@@ -706,13 +743,24 @@ async function saveToFile() {
       })
       .eq('id', cfg.recordId || 'main-release-tracker');
     if (result.error) throw result.error;
+
     hasUnsavedChanges = false;
     updateSaveBtn(); updateFooter(); updateUnsavedBanner();
-    showToast('✅ 业务数据已保存到云端，其他浏览器刷新后即可看到', 'success');
+    if (!silent) showToast('✅ 业务数据已保存到云端，其他浏览器刷新后即可看到', 'success');
+    return true;
   } catch (err) {
     console.error('[Supabase] save failed:', err);
-    showToast('云端保存失败，本地草稿仍然保留', 'warning');
+    if (!silent) showToast('云端保存失败，本地草稿仍然保留', 'warning');
+    return false;
+  } finally {
+    cloudSaveInProgress = false;
   }
+}
+
+// Manual save button; edits are also saved automatically after a short delay.
+async function saveToFile() {
+  clearTimeout(autoSaveTimer);
+  await saveToCloud(false);
 }
 
 function generateSaveData() {
@@ -1055,6 +1103,82 @@ const TENCENT_DOC_CONFIG = {
   sheet_id: '4p08l9',
   sheet_name: '生产环境发版清单'
 };
+
+// Copy tab-separated rows that can be pasted directly into a new Tencent Docs sheet.
+async function copyTableData() {
+  if (data.items.length === 0) {
+    showToast('没有可复制的事项，请先添加');
+    return;
+  }
+  const headers = ['序号', '考勤管理', '问题描述', '问题状态', '业务顾问', '预计发版时间',
+    '实际发版时间', '发版序列号', '备注', '发版评审过程待跟进事项', 'ABAP/业务顾问'];
+  const clean = value => String(value ?? '').replace(/\t/g, ' ').replace(/\r?\n/g, ' ');
+  const rows = data.items.map((it, index) => {
+    const st = STATUS_MAP[it.status] || STATUS_MAP[STATUS_MIGRATE[it.status]] || STATUS_MAP.dev;
+    return [
+      it.seqNo || index + 1,
+      it.module || '考勤管理',
+      it.desc || '',
+      st.label,
+      it.consultant || '',
+      it.planDate || '',
+      it.actualDate || '',
+      it.serialNo || '',
+      it.remark || '',
+      it.reviewFollowup || '',
+      it.abapConsultant || ''
+    ].map(clean).join('\t');
+  });
+  const text = [headers.join('\t'), ...rows].join('\n');
+
+  try {
+    await navigator.clipboard.writeText(text);
+    showToast('✅ 已复制表格数据，请在腾讯文档的新子表中按 Ctrl+V 粘贴', 'success');
+  } catch (err) {
+    openDataPanel('save');
+    document.getElementById('dataPanelTitle').textContent = '复制到腾讯文档（不会修改原表）';
+    const ta = document.getElementById('saveDataText');
+    ta.value = text;
+    ta.focus();
+    ta.select();
+    document.getElementById('saveHint').textContent = '请按 Ctrl+C 复制，然后到腾讯文档的新子表中按 Ctrl+V 粘贴';
+  }
+}
+
+function openHistoryPanel() {
+  try {
+    historyCache = JSON.parse(localStorage.getItem('release_tracker_local_history') || '[]');
+  } catch(e) {
+    historyCache = [];
+  }
+  if (historyCache.length === 0) {
+    openModal('<h3 style="margin:0 0 14px">历史版本</h3><p>这个浏览器还没有历史版本。下一次编辑后会开始记录。</p>' +
+      '<div class="modal-actions"><button class="btn btn-light" onclick="closeModal()">关闭</button></div>');
+    return;
+  }
+  const list = historyCache.map((item, index) => {
+    const count = item.payload && Array.isArray(item.payload.items) ? item.payload.items.length : 0;
+    const time = new Date(item.saved_at).toLocaleString('zh-CN');
+    return '<button class="btn btn-light" style="width:100%;margin:4px 0;text-align:left;justify-content:space-between" ' +
+      'onclick="restoreHistory(' + index + ')"><span>' + time + '</span><span>' + count + ' 项 · 恢复</span></button>';
+  }).join('');
+  openModal('<h3 style="margin:0 0 8px">历史版本</h3><p class="hint">此处保留当前浏览器最近 20 个编辑版本。</p>' +
+    list + '<div class="modal-actions"><button class="btn btn-light" onclick="closeModal()">关闭</button></div>');
+}
+
+async function restoreHistory(index) {
+  const selected = historyCache[index];
+  if (!selected || !selected.payload) return;
+  data = JSON.parse(JSON.stringify(selected.payload));
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(data)); } catch(e) {}
+  renderAll();
+  hasUnsavedChanges = true;
+  closeModal();
+  updateSaveBtn();
+  updateUnsavedBanner();
+  await saveToFile();
+  showToast('✅ 已恢复历史版本并保存到云端', 'success');
+}
 
 // Column mapping: A=序号, B=考勤管理, C=问题描述, D=问题状态, E=业务顾问,
 //                 F=预计发版时间, G=实际发版时间, H=发版序列号, I=备注,
