@@ -4,5 +4,6 @@ window.SUPABASE_CONFIG = {
   url: 'https://rbznobimmuyeowbokfwk.supabase.co',
   publishableKey: 'sb_publishable_GkqUKOyP44XsG75CV3WYNQ_xTttkgJe',
   table: 'release_tracker',
-  recordId: 'main-release-tracker'
+  recordId: 'main-release-tracker',
+  storageBucket: 'release-tracker-attachments'
 };

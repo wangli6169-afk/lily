@@ -1043,7 +1043,7 @@ function renderItemViewRow(it) {
     <td><span class="tag ${st.cls}">${st.label}</span></td>
     <td class="cell-remark" title="${esc(it.remark)}">${esc(it.remark) || ''}</td>
     <td class="cell-review" title="${esc(it.reviewFollowup)}">${esc(it.reviewFollowup) || ''}</td>
-    <td>${it.testFeedbackMsg?.data
+    <td>${(it.testFeedbackMsg?.url || it.testFeedbackMsg?.data)
       ? `<button class="btn btn-light btn-sm" onclick="downloadMsgFile('${it.id}')" title="${esc(it.testFeedbackMsg.name)}">📧 ${esc(it.testFeedbackMsg.name)}</button>`
       : ''}</td>
     <td>${esc(it.abapConsultant) || ''}</td>
@@ -1074,7 +1074,7 @@ function renderItemEditRow(it) {
     <td><input type="text" data-field="remark" value="${esc(it.remark) || ''}" placeholder="备注" style="min-width:120px"></td>
     <td><input type="text" data-field="reviewFollowup" value="${esc(it.reviewFollowup) || ''}" placeholder="待跟进" style="min-width:120px"></td>
     <td>
-      ${it.testFeedbackMsg?.data ? `<div style="margin-bottom:6px;font-size:12px">📧 ${esc(it.testFeedbackMsg.name)}
+      ${(it.testFeedbackMsg?.url || it.testFeedbackMsg?.data) ? `<div style="margin-bottom:6px;font-size:12px">📧 ${esc(it.testFeedbackMsg.name)}
         <button type="button" class="del-btn" onclick="removePendingMsgFile('${it.id}')">移除</button></div>` : ''}
       <input type="file" accept=".msg,application/vnd.ms-outlook" onchange="handleMsgFile(this, '${it.id}')" style="max-width:180px">
     </td>
@@ -1128,7 +1128,7 @@ function startEditItem(id) {
   }, 30);
 }
 
-function handleMsgFile(input, id) {
+async function handleMsgFile(input, id) {
   const file = input.files && input.files[0];
   if (!file) return;
   if (!file.name.toLowerCase().endsWith('.msg')) {
@@ -1141,17 +1141,44 @@ function handleMsgFile(input, id) {
     showToast('MSG 文件不能超过 3MB', 'warning');
     return;
   }
-  const reader = new FileReader();
-  reader.onload = () => {
+  if (!cloudReady || !supabaseClient) {
+    input.value = '';
+    showToast('云端尚未连接，暂时不能上传附件', 'warning');
+    return;
+  }
+  const cfg = window.SUPABASE_CONFIG || {};
+  const bucket = cfg.storageBucket || 'release-tracker-attachments';
+  const serialNo = serialNoFromReleaseDate(data.info.planDate) || 'draft';
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const objectPath = `${serialNo}/${Date.now()}-${safeName}`;
+  input.disabled = true;
+  showToast(`正在上传邮件：${file.name}`);
+  try {
+    const result = await supabaseClient.storage
+      .from(bucket)
+      .upload(objectPath, file, {
+        contentType: file.type || 'application/vnd.ms-outlook',
+        upsert: false
+      });
+    if (result.error) throw result.error;
+    const publicResult = supabaseClient.storage.from(bucket).getPublicUrl(objectPath, {
+      download: file.name
+    });
     pendingMsgFiles.set(id, {
       name: file.name,
       type: file.type || 'application/vnd.ms-outlook',
-      data: reader.result
+      size: file.size,
+      path: objectPath,
+      url: publicResult.data.publicUrl
     });
-    showToast(`已选择邮件：${file.name}`, 'success');
-  };
-  reader.onerror = () => showToast('邮件文件读取失败，请重新选择', 'warning');
-  reader.readAsDataURL(file);
+    showToast(`✅ 邮件已上传：${file.name}`, 'success');
+  } catch (err) {
+    console.error('[Storage] upload failed:', err);
+    input.value = '';
+    showToast('附件上传失败，请检查 Storage 配置', 'warning');
+  } finally {
+    input.disabled = false;
+  }
 }
 
 function removePendingMsgFile(id) {
@@ -1165,9 +1192,9 @@ function removePendingMsgFile(id) {
 function downloadMsgFile(id) {
   const item = data.items.find(it => it.id === id);
   const msg = item?.testFeedbackMsg;
-  if (!msg?.data) return;
+  if (!msg?.url && !msg?.data) return;
   const a = document.createElement('a');
-  a.href = msg.data;
+  a.href = msg.url || msg.data;
   a.download = msg.name || '测试反馈邮件.msg';
   document.body.appendChild(a);
   a.click();
@@ -1180,6 +1207,10 @@ function saveInlineItem(id) {
   const get = (f) => { const el = row.querySelector(`[data-field="${f}"]`); return el ? el.value.trim() : ''; };
   const desc = get('desc');
   if (!desc) { showToast('请填写问题描述'); return; }
+  const existingItem = data.items.find(it => it.id === id);
+  const nextMsg = pendingMsgFiles.has(id)
+    ? pendingMsgFiles.get(id)
+    : (existingItem?.testFeedbackMsg || null);
   const obj = {
     seqNo: '',
     module: get('module') || '考勤管理',
@@ -1188,9 +1219,7 @@ function saveInlineItem(id) {
     consultant: data.items.find(it => it.id === id)?.consultant || '',
     remark: get('remark'),
     reviewFollowup: get('reviewFollowup'),
-    testFeedbackMsg: pendingMsgFiles.has(id)
-      ? pendingMsgFiles.get(id)
-      : (data.items.find(it => it.id === id)?.testFeedbackMsg || null),
+    testFeedbackMsg: nextMsg,
     abapConsultant: get('abapConsultant'),
     consultantRequestNo: get('consultantRequestNo')
   };
@@ -1426,7 +1455,7 @@ function viewArchivedRelease(serialNo) {
           <tbody>${(record.items || []).map((item, index) => {
             const status = STATUS_MAP[item.status] || STATUS_MAP.dev;
             return `<tr><td>${esc(item.module)}</td><td>${esc(item.desc)}</td><td>${esc(status.label)}</td><td>${esc(item.remark)}</td><td>${esc(item.reviewFollowup)}</td>
-              <td>${item.testFeedbackMsg?.data ? `<button class="btn btn-primary btn-sm" onclick="downloadArchivedMsg('${serialNo}',${index})">📧 ${esc(item.testFeedbackMsg.name)}</button>` : ''}</td>
+              <td>${(item.testFeedbackMsg?.url || item.testFeedbackMsg?.data) ? `<button class="btn btn-primary btn-sm" onclick="downloadArchivedMsg('${serialNo}',${index})">📧 ${esc(item.testFeedbackMsg.name)}</button>` : ''}</td>
               <td>${esc(item.abapConsultant)}</td><td>${esc(item.consultantRequestNo)}</td></tr>`;
           }).join('') || '<tr><td colspan="8" class="empty-hint">无事项</td></tr>'}</tbody>
         </table>
@@ -1454,9 +1483,9 @@ function showCurrentReleasePage() {
 
 function downloadArchivedMsg(serialNo, itemIndex) {
   const msg = data.archives?.[serialNo]?.items?.[itemIndex]?.testFeedbackMsg;
-  if (!msg?.data) return;
+  if (!msg?.url && !msg?.data) return;
   const a = document.createElement('a');
-  a.href = msg.data;
+  a.href = msg.url || msg.data;
   a.download = msg.name || '测试反馈邮件.msg';
   document.body.appendChild(a);
   a.click();
